@@ -111,32 +111,32 @@ namespace
 
   void CreateCommandPools(gfx2::internal::Context& ctx)
   {
-    CheckVkResult(vkCreateCommandPool(sContext->device,
+    CheckVkResult(vkCreateCommandPool(ctx.device,
       ToPtr(VkCommandPoolCreateInfo{
         .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = static_cast<uint32_t>(sContext->graphicsQueueFamilyIndex),
+        .queueFamilyIndex = static_cast<uint32_t>(ctx.graphicsQueueFamilyIndex),
       }),
       nullptr,
-      &sContext->graphicsCommandPool));
+      &ctx.commandPools[GFX_QUEUE_GRAPHICS]));
 
-    CheckVkResult(vkCreateCommandPool(sContext->device,
+    CheckVkResult(vkCreateCommandPool(ctx.device,
       ToPtr(VkCommandPoolCreateInfo{
         .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = static_cast<uint32_t>(sContext->computeQueueFamilyIndex),
+        .queueFamilyIndex = static_cast<uint32_t>(ctx.computeQueueFamilyIndex),
       }),
       nullptr,
-      &sContext->computeCommandPool));
+      &ctx.commandPools[GFX_QUEUE_COMPUTE]));
 
-    CheckVkResult(vkCreateCommandPool(sContext->device,
+    CheckVkResult(vkCreateCommandPool(ctx.device,
       ToPtr(VkCommandPoolCreateInfo{
         .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = static_cast<uint32_t>(sContext->transferQueueFamilyIndex),
+        .queueFamilyIndex = static_cast<uint32_t>(ctx.transferQueueFamilyIndex),
       }),
       nullptr,
-      &sContext->transferCommandPool));
+      &ctx.commandPools[GFX_QUEUE_TRANSFER]));
   }
 }
 
@@ -149,14 +149,14 @@ void gfx2::internal::CreateContextInstance(const gfx_vulkan_init_info& info)
   sContext->instance       = info.instance;
   sContext->device         = info.device;
   sContext->physicalDevice = info.physicalDevice;
-  sContext->graphicsQueue  = info.graphicsQueue;
-  sContext->computeQueue   = info.computeQueue;
-  sContext->transferQueue  = info.transferQueue;
 
   sContext->graphicsQueueFamilyIndex = info.graphicsQueueFamilyIndex;
   sContext->computeQueueFamilyIndex  = info.computeQueueFamilyIndex;
   sContext->transferQueueFamilyIndex = info.transferQueueFamilyIndex;
   
+  vkGetDeviceQueue(sContext->device, info.graphicsQueueFamilyIndex, 0, &sContext->queues[GFX_QUEUE_GRAPHICS]);
+  vkGetDeviceQueue(sContext->device, info.computeQueueFamilyIndex, 0, &sContext->queues[GFX_QUEUE_COMPUTE]);
+  vkGetDeviceQueue(sContext->device, info.transferQueueFamilyIndex, 0, &sContext->queues[GFX_QUEUE_TRANSFER]);
 
   CreateVmaAllocator(*sContext);
   CreateDescriptorSet(*sContext);
@@ -171,9 +171,9 @@ void gfx2::internal::DestroyContextInstance()
   vkDestroyDescriptorSetLayout(sContext->device, sContext->commonDescriptorSetLayout, nullptr);
   vkDestroyDescriptorPool(sContext->device, sContext->descriptorPool, nullptr);
 
-  vkDestroyCommandPool(sContext->device, sContext->transferCommandPool, nullptr);
-  vkDestroyCommandPool(sContext->device, sContext->computeCommandPool, nullptr);
-  vkDestroyCommandPool(sContext->device, sContext->graphicsCommandPool, nullptr);
+  vkDestroyCommandPool(sContext->device, sContext->commandPools[GFX_QUEUE_TRANSFER], nullptr);
+  vkDestroyCommandPool(sContext->device, sContext->commandPools[GFX_QUEUE_COMPUTE], nullptr);
+  vkDestroyCommandPool(sContext->device, sContext->commandPools[GFX_QUEUE_GRAPHICS], nullptr);
 
   vmaDestroyAllocator(sContext->allocator);
 

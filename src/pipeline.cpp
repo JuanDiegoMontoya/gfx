@@ -34,20 +34,15 @@ gfx_compute_pipeline gfx_create_compute_pipeline(gfx_byte_span code)
     nullptr,
     &pipeline->pipeline));
 
-  ctx.computePipelines.emplace(pipeline);
-
   return pipeline;
 }
 
-void gfx_free_compute_pipeline(gfx_compute_pipeline pipeline)
+void gfx_destroy_compute_pipeline(gfx_compute_pipeline pipeline)
 {
+  assert(pipeline);
   auto& ctx = gfx2::internal::GetContextInstance();
 
-  auto it = ctx.computePipelines.find(pipeline);
-  assert(it != ctx.computePipelines.end());
-
-  vkDestroyShaderModule(ctx.device, (*it)->shaderModule, nullptr);
-  vkDestroyPipeline(ctx.device, (*it)->pipeline, nullptr);
-  delete *it;
-  ctx.computePipelines.erase(it);
+  vkDestroyShaderModule(ctx.device, pipeline->shaderModule, nullptr);
+  vkDestroyPipeline(ctx.device, pipeline->pipeline, nullptr);
+  delete pipeline;
 }

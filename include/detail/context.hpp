@@ -5,7 +5,6 @@
 
 #include <cassert>
 #include <vector>
-#include <unordered_set>
 
 struct gfx_compute_pipeline_t
 {
@@ -13,9 +12,19 @@ struct gfx_compute_pipeline_t
   VkPipeline pipeline;
 };
 
+struct gfx_command_buffer_t
+{
+  gfx_queue queue;
+  VkCommandBuffer cmd;
+};
+
+struct gfx_semaphore_t
+{
+  VkSemaphore semaphore;
+};
+
 namespace gfx2::internal
 {
-
   struct MemoryMapping
   {
     uintptr_t begin;
@@ -50,9 +59,7 @@ namespace gfx2::internal
     VkInstance instance;
     VkDevice device;
     VkPhysicalDevice physicalDevice;
-    VkQueue graphicsQueue;
-    VkQueue computeQueue;
-    VkQueue transferQueue;
+    VkQueue queues[GFX_NUM_QUEUES];
     int32_t graphicsQueueFamilyIndex = -1;
     int32_t computeQueueFamilyIndex = -1;
     int32_t transferQueueFamilyIndex = -1;
@@ -60,14 +67,10 @@ namespace gfx2::internal
     MemoryMappings memoryMappings;
 
     VmaAllocator allocator;
-    VkCommandPool graphicsCommandPool;
-    VkCommandPool computeCommandPool;
-    VkCommandPool transferCommandPool;
+    VkCommandPool commandPools[GFX_NUM_QUEUES];
     VkDescriptorPool descriptorPool;
     VkDescriptorSetLayout commonDescriptorSetLayout;
     VkPipelineLayout commonPipelineLayout;
-
-    std::unordered_set<gfx_compute_pipeline> computePipelines;
   };
 
   void CreateContextInstance(const gfx_vulkan_init_info& info);
