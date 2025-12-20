@@ -115,7 +115,7 @@ namespace
       ToPtr(VkCommandPoolCreateInfo{
         .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = static_cast<uint32_t>(ctx.graphicsQueueFamilyIndex),
+        .queueFamilyIndex = ctx.graphicsQueueFamilyIndex,
       }),
       nullptr,
       &ctx.commandPools[GFX_QUEUE_GRAPHICS]));
@@ -124,7 +124,7 @@ namespace
       ToPtr(VkCommandPoolCreateInfo{
         .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = static_cast<uint32_t>(ctx.computeQueueFamilyIndex),
+        .queueFamilyIndex = ctx.computeQueueFamilyIndex,
       }),
       nullptr,
       &ctx.commandPools[GFX_QUEUE_COMPUTE]));
@@ -133,7 +133,7 @@ namespace
       ToPtr(VkCommandPoolCreateInfo{
         .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = static_cast<uint32_t>(ctx.transferQueueFamilyIndex),
+        .queueFamilyIndex = ctx.transferQueueFamilyIndex,
       }),
       nullptr,
       &ctx.commandPools[GFX_QUEUE_TRANSFER]));

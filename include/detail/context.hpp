@@ -60,9 +60,9 @@ namespace gfx2::internal
     VkDevice device;
     VkPhysicalDevice physicalDevice;
     VkQueue queues[GFX_NUM_QUEUES];
-    int32_t graphicsQueueFamilyIndex = -1;
-    int32_t computeQueueFamilyIndex = -1;
-    int32_t transferQueueFamilyIndex = -1;
+    uint32_t graphicsQueueFamilyIndex;
+    uint32_t computeQueueFamilyIndex;
+    uint32_t transferQueueFamilyIndex;
 
     MemoryMappings memoryMappings;
 

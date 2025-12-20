@@ -132,12 +132,12 @@ int main()
   auto [instance, physicalDevice, device, graphicsQueueIndex, computeQueueIndex, transferQueueIndex] = InitializeVulkan();
 
   auto initInfo = gfx_vulkan_init_info{
-    .instance       = instance,
-    .physicalDevice = physicalDevice,
-    .device         = device,
-    .graphicsQueueFamilyIndex = static_cast<int32_t>(graphicsQueueIndex),
-    .computeQueueFamilyIndex  = static_cast<int32_t>(computeQueueIndex),
-    .transferQueueFamilyIndex = static_cast<int32_t>(transferQueueIndex),
+    .instance                 = instance,
+    .physicalDevice           = physicalDevice,
+    .device                   = device,
+    .graphicsQueueFamilyIndex = graphicsQueueIndex,
+    .computeQueueFamilyIndex  = computeQueueIndex,
+    .transferQueueFamilyIndex = transferQueueIndex,
   };
   gfx_vulkan_initialize(&initInfo);
 
