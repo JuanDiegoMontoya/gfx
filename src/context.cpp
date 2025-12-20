@@ -158,6 +158,26 @@ void gfx2::internal::CreateContextInstance(const gfx_vulkan_init_info& info)
   vkGetDeviceQueue(sContext->device, info.computeQueueFamilyIndex, 0, &sContext->queues[GFX_QUEUE_COMPUTE]);
   vkGetDeviceQueue(sContext->device, info.transferQueueFamilyIndex, 0, &sContext->queues[GFX_QUEUE_TRANSFER]);
 
+  for (auto& [semaphore] : sContext->semaphores)
+  {
+    CheckVkResult(vkCreateSemaphore(sContext->device,
+      ToPtr(VkSemaphoreCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        .pNext = ToPtr(VkSemaphoreTypeCreateInfo{
+          .sType         = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+          .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+          .initialValue  = 0,
+        }),
+      }),
+      nullptr,
+      &semaphore));
+  }
+
+  for (auto& value : sContext->semaphoreValues)
+  {
+    value = 0;
+  }
+
   CreateVmaAllocator(*sContext);
   CreateDescriptorSet(*sContext);
   CreateCommandPools(*sContext);
@@ -176,6 +196,11 @@ void gfx2::internal::DestroyContextInstance()
   vkDestroyCommandPool(sContext->device, sContext->commandPools[GFX_QUEUE_GRAPHICS], nullptr);
 
   vmaDestroyAllocator(sContext->allocator);
+
+  for (auto [semaphore] : sContext->semaphores)
+  {
+    vkDestroySemaphore(sContext->device, semaphore, nullptr);
+  }
 
   delete sContext;
   sContext = nullptr;

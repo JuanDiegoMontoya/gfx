@@ -66,6 +66,8 @@ namespace gfx2::internal
 
     MemoryMappings memoryMappings;
 
+    gfx_semaphore_t semaphores[GFX_NUM_QUEUES];
+    uint64_t semaphoreValues[GFX_NUM_QUEUES];
     VmaAllocator allocator;
     VkCommandPool commandPools[GFX_NUM_QUEUES];
     VkDescriptorPool descriptorPool;

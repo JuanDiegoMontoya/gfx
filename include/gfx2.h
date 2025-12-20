@@ -28,14 +28,18 @@ typedef struct gfx_command_buffer_t* gfx_command_buffer;
 typedef struct gfx_semaphore_t* gfx_semaphore;
 typedef struct gfx_compute_pipeline_t* gfx_compute_pipeline;
 
+typedef struct gfx_submit_token
+{
+  gfx_semaphore semaphore;
+  uint64_t value;
+} gfx_submit_token;
+
 gfx_command_buffer gfx_create_command_buffer(gfx_queue queue);
 void gfx_destroy_command_buffer(gfx_command_buffer command_buffer);
 
-void gfx_submit(gfx_command_buffer command_buffer, gfx_semaphore semaphore, uint64_t signal);
+gfx_submit_token gfx_submit(gfx_command_buffer command_buffer, const gfx_submit_token* wait_tokens, uint32_t num_wait_tokens);
 
-gfx_semaphore gfx_create_semaphore(uint64_t initial_value);
-void gfx_wait_semaphore(gfx_semaphore semaphore, uint64_t value);
-void gfx_destroy_semaphore(gfx_semaphore semaphore);
+void gfx_wait_token(gfx_submit_token token);
 
 gfx_compute_pipeline gfx_create_compute_pipeline(gfx_byte_span code);
 void gfx_destroy_compute_pipeline(gfx_compute_pipeline pipeline);

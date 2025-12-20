@@ -12,7 +12,6 @@ add_library(gfx2
 	"src/gfx2_vulkan.cpp"
 	"src/pipeline.cpp"
 	"src/cmd.cpp"
-	"src/semaphore.cpp"
 )
 
 target_compile_features(gfx2 PUBLIC cxx_std_23)
