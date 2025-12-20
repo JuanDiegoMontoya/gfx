@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.25)
 
 project(GFX2)
 
@@ -9,6 +9,7 @@ option(GFX2_BUILD_EXAMPLES "Compile example executable for GFX2." FALSE)
 add_library(gfx2
 	"src/memory.cpp"
 	"src/context.cpp"
+	"src/gfx2_vulkan.cpp"
 )
 
 target_compile_features(gfx2 PUBLIC cxx_std_23)

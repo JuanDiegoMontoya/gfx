@@ -23,6 +23,7 @@ void gfx2::internal::DestroyContextInstance()
 {
   assert(sContext);
   delete sContext;
+  sContext = nullptr;
 }
 
 gfx2::internal::Context& gfx2::internal::GetContextInstance()

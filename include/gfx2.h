@@ -10,7 +10,7 @@ typedef int gfx_error_t;
 
 typedef struct gfx_byte_span
 {
-  void* ptr;
+  const void* ptr;
   size_t size;
 } gfx_byte_span;
 
