@@ -5,9 +5,17 @@
 
 #include <cassert>
 #include <vector>
+#include <unordered_set>
+
+struct gfx_compute_pipeline_t
+{
+  VkShaderModule shaderModule;
+  VkPipeline pipeline;
+};
 
 namespace gfx2::internal
 {
+
   struct MemoryMapping
   {
     uintptr_t begin;
@@ -39,7 +47,9 @@ namespace gfx2::internal
 
   struct Context
   {
+    VkInstance instance;
     VkDevice device;
+    VkPhysicalDevice physicalDevice;
     VkQueue graphicsQueue;
     VkQueue computeQueue;
     VkQueue transferQueue;
@@ -50,6 +60,14 @@ namespace gfx2::internal
     MemoryMappings memoryMappings;
 
     VmaAllocator allocator;
+    VkCommandPool graphicsCommandPool;
+    VkCommandPool computeCommandPool;
+    VkCommandPool transferCommandPool;
+    VkDescriptorPool descriptorPool;
+    VkDescriptorSetLayout commonDescriptorSetLayout;
+    VkPipelineLayout commonPipelineLayout;
+
+    std::unordered_set<gfx_compute_pipeline> computePipelines;
   };
 
   void CreateContextInstance(const gfx_vulkan_init_info& info);

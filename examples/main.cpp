@@ -1,5 +1,6 @@
 #include "gfx2.h"
 #include "gfx2_vulkan.h"
+#include "detail/common.hpp"
 
 #include "shaderc/shaderc.hpp"
 #include "vulkan/vulkan_core.h"
@@ -51,16 +52,16 @@ int main()
   };
 
   auto instance = VkInstance{};
-  vkCreateInstance(&instanceInfo, nullptr, &instance);
+  CheckVkResult(vkCreateInstance(&instanceInfo, nullptr, &instance));
 
   auto physicalDeviceCount = uint32_t{};
-  vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr);
+  CheckVkResult(vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr));
   auto physicalDevices = std::make_unique<VkPhysicalDevice[]>(physicalDeviceCount);
-  vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.get());
+  CheckVkResult(vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.get()));
 
   auto physicalDevice = VkPhysicalDevice{};
   auto u32one         = uint32_t{1};
-  vkEnumeratePhysicalDevices(instance, &u32one, &physicalDevice);
+  CheckVkResult(vkEnumeratePhysicalDevices(instance, &u32one, &physicalDevice));
 
   auto queueFamilyCount = uint32_t{};
   vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
@@ -112,17 +113,97 @@ int main()
     queueCreateInfos.back().queueFamilyIndex = transferQueueIndex;
   }
 
+  auto features13 = VkPhysicalDeviceVulkan13Features{
+    .sType                          = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+    .shaderDemoteToHelperInvocation = true,
+    .shaderTerminateInvocation      = true,
+    .subgroupSizeControl            = true,
+    .synchronization2               = true,
+    .dynamicRendering               = true,
+    .shaderIntegerDotProduct        = true,
+    .maintenance4                   = true,
+  };
+
+  auto features12 = VkPhysicalDeviceVulkan12Features{
+    .sType                                         = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+    .pNext                                         = &features13,
+    .drawIndirectCount                             = true,
+    .storageBuffer8BitAccess                       = true,
+    .uniformAndStorageBuffer8BitAccess             = true,
+    .shaderFloat16                                 = true,
+    .shaderInt8                                    = true,
+    .descriptorIndexing                            = true,
+    .shaderSampledImageArrayNonUniformIndexing     = true,
+    .shaderStorageBufferArrayNonUniformIndexing    = true,
+    .shaderStorageImageArrayNonUniformIndexing     = true,
+    .descriptorBindingSampledImageUpdateAfterBind  = true,
+    .descriptorBindingStorageImageUpdateAfterBind  = true,
+    .descriptorBindingStorageBufferUpdateAfterBind = true,
+    .descriptorBindingUpdateUnusedWhilePending     = true,
+    .descriptorBindingPartiallyBound               = true,
+    .descriptorBindingVariableDescriptorCount      = true,
+    .runtimeDescriptorArray                        = true,
+    .samplerFilterMinmax                           = true,
+    .scalarBlockLayout                             = true,
+    .imagelessFramebuffer                          = true,
+    .uniformBufferStandardLayout                   = true,
+    .shaderSubgroupExtendedTypes                   = true,
+    .hostQueryReset                                = true,
+    .timelineSemaphore                             = true,
+    .bufferDeviceAddress                           = true,
+    .vulkanMemoryModel                             = true,
+    .vulkanMemoryModelDeviceScope                  = true,
+    .subgroupBroadcastDynamicId                    = true,
+  };
+
+  auto features11 = VkPhysicalDeviceVulkan11Features{
+    .sType                              = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+    .pNext = &features12,
+    .storageBuffer16BitAccess           = true,
+    .uniformAndStorageBuffer16BitAccess = true,
+    .variablePointersStorageBuffer      = true,
+    .variablePointers                   = true,
+    .shaderDrawParameters               = true,
+  };
+
+  auto features = VkPhysicalDeviceFeatures2{
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+    .pNext = &features11,
+    .features =
+      {
+        .multiDrawIndirect                 = true,
+        .fillModeNonSolid                  = true,
+        .samplerAnisotropy                 = true,
+        .textureCompressionBC              = true,
+        .vertexPipelineStoresAndAtomics    = true,
+        .fragmentStoresAndAtomics          = true,
+        .shaderStorageImageExtendedFormats = true,
+        // Apparently the next two features are not needed with 1.3 since you can query support in a granular fashion
+        .shaderStorageImageReadWithoutFormat     = true,
+        .shaderStorageImageWriteWithoutFormat    = true,
+        .shaderUniformBufferArrayDynamicIndexing = true,
+        .shaderSampledImageArrayDynamicIndexing  = true,
+        .shaderStorageBufferArrayDynamicIndexing = true,
+        .shaderStorageImageArrayDynamicIndexing  = true,
+        .shaderClipDistance                      = true,
+        .shaderCullDistance                      = true,
+        .shaderFloat64                           = true,
+        .shaderInt64                             = true,
+        .shaderInt16                             = true,
+      },
+  };
+
   auto deviceCreateInfo = VkDeviceCreateInfo{
-    .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-    .queueCreateInfoCount    = static_cast<uint32_t>(queueCreateInfos.size()),
-    .pQueueCreateInfos       = queueCreateInfos.data(),
+    .sType                = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+    .pNext                = &features,
+    .queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size()),
+    .pQueueCreateInfos    = queueCreateInfos.data(),
     //.enabledExtensionCount   =,
     //.ppEnabledExtensionNames =,
-    //.pEnabledFeatures        =,
   };
 
   auto device = VkDevice{};
-  vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
+  CheckVkResult(vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device));
 
   auto graphicsQueue = VkQueue{};
   vkGetDeviceQueue(device, graphicsQueueIndex, 0, &graphicsQueue);
@@ -140,10 +221,15 @@ int main()
   }
 
   auto initInfo = gfx_vulkan_init_info{
-    .device        = device,
-    .graphicsQueue = graphicsQueue,
-    .computeQueue  = computeQueue,
+    .instance       = instance,
+    .device         = device,
+    .physicalDevice = physicalDevice,
+    .graphicsQueue  = graphicsQueue,
+    .computeQueue   = computeQueue,
     .transferQueue = transferQueue,
+    .graphicsQueueFamilyIndex = static_cast<int32_t>(graphicsQueueIndex),
+    .computeQueueFamilyIndex  = static_cast<int32_t>(computeQueueIndex),
+    .transferQueueFamilyIndex = static_cast<int32_t>(transferQueueIndex),
   };
   gfx_vulkan_initialize(&initInfo);
 
@@ -151,7 +237,11 @@ int main()
   const auto result = CompileShaderToSpirv(shaderc_compute_shader, sShader);
   const auto pipeline = gfx_create_compute_pipeline({.ptr = result.binarySpv.data(), .size = result.binarySpv.size() * sizeof(uint32_t)});
 
+  gfx_free_compute_pipeline(pipeline);
   gfx_vulkan_shutdown();
+
+  vkDestroyDevice(device, nullptr);
+  vkDestroyInstance(instance, nullptr);
 
   return 0;
 }

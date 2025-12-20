@@ -1,3 +1,4 @@
+#define VMA_IMPLEMENTATION
 #include "detail/common.hpp"
 #include "detail/context.hpp"
 #include "gfx2.h"

@@ -10,6 +10,7 @@ add_library(gfx2
 	"src/memory.cpp"
 	"src/context.cpp"
 	"src/gfx2_vulkan.cpp"
+	"src/pipeline.cpp"
 )
 
 target_compile_features(gfx2 PUBLIC cxx_std_23)
