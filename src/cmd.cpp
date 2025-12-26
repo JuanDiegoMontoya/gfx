@@ -4,6 +4,34 @@
 
 #include <vector>
 
+namespace
+{
+  VkPipelineStageFlags2 ToVkStageFlags(gfx_stage_flags inFlags)
+  {
+    auto flags = VkPipelineStageFlags2{};
+
+    flags |= inFlags & GFX_STAGE_VERTEX_SHADER ? VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT : 0;
+    flags |= inFlags & GFX_STAGE_EARLY_FRAGMENT_TESTS ? VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT : 0;
+    flags |= inFlags & GFX_STAGE_FRAGMENT_SHADER ? VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT : 0;
+    flags |= inFlags & GFX_STAGE_LATE_FRAGMENT_TESTS ? VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT : 0;
+    flags |= inFlags & GFX_STAGE_FRAGMENT_SHADER_OUTPUT ? VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT : 0;
+    flags |= inFlags & GFX_STAGE_COMPUTE ? VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT : 0;
+    flags |= inFlags & GFX_STAGE_TRANSFER ? VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT : 0;
+
+    return flags;
+  }
+
+  VkAccessFlags2 ToVkAccessFlags(gfx_access_flags inFlags)
+  {
+    auto flags = VkAccessFlags2{};
+
+    flags |= inFlags & GFX_ACCESS_READ ? VK_ACCESS_2_MEMORY_READ_BIT : 0;
+    flags |= inFlags & GFX_ACCESS_WRITE ? VK_ACCESS_2_MEMORY_WRITE_BIT : 0;
+
+    return flags;
+  }
+}
+
 gfx_command_buffer gfx_create_command_buffer(gfx_queue queue)
 {
   auto& ctx = gfx2::internal::GetContextInstance();
@@ -87,6 +115,22 @@ void gfx_wait_token(gfx_submit_token token)
       .pValues        = &token.value,
     }),
     UINT64_MAX);
+}
+
+void gfx_cmd_barrier(gfx_command_buffer command_buffer, gfx_stage_flags srcStage, gfx_access_flags srcAccess, gfx_stage_flags dstStage, gfx_access_flags dstAccess)
+{
+  vkCmdPipelineBarrier2(command_buffer->cmd,
+    ToPtr(VkDependencyInfo{
+      .sType              = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+      .memoryBarrierCount = 1,
+      .pMemoryBarriers    = ToPtr(VkMemoryBarrier2{
+           .sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+           .srcStageMask  = ToVkStageFlags(srcStage),
+           .srcAccessMask = ToVkAccessFlags(srcAccess),
+           .dstStageMask  = ToVkStageFlags(dstStage),
+           .dstAccessMask = ToVkAccessFlags(dstAccess),
+      }),
+    }));
 }
 
 void gfx_cmd_dispatch(gfx_command_buffer command_buffer, gfx_compute_pipeline pipeline, uint32_t x, uint32_t y, uint32_t z, const void* args)

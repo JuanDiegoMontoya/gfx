@@ -54,9 +54,10 @@ namespace
 
   void CreateDescriptorSet(gfx2::internal::Context& ctx)
   {
-    auto poolSizes = std::array<VkDescriptorPoolSize, 2>();
-    poolSizes[0]   = {.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, .descriptorCount = 1'000'000};
-    poolSizes[1]   = {.type = VK_DESCRIPTOR_TYPE_SAMPLER, .descriptorCount = 1000};
+    auto poolSizes = std::array<VkDescriptorPoolSize, 3>();
+    poolSizes[0]   = {.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, .descriptorCount = 1'000'000};
+    poolSizes[1]   = {.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, .descriptorCount = 1'000'000};
+    poolSizes[2]   = {.type = VK_DESCRIPTOR_TYPE_SAMPLER, .descriptorCount = 1000};
 
     CheckVkResult(vkCreateDescriptorPool(ctx.device,
       ToPtr(VkDescriptorPoolCreateInfo{
@@ -69,23 +70,26 @@ namespace
       nullptr,
       &ctx.descriptorPool));
 
-    auto bindings = std::array<VkDescriptorSetLayoutBinding, 2>();
-    bindings[0]   = {.binding = 0, .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, .descriptorCount = 1'000'000, .stageFlags = VK_SHADER_STAGE_ALL};
-    bindings[1]   = {.binding = 1, .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER, .descriptorCount = 1000, .stageFlags = VK_SHADER_STAGE_ALL};
+    auto bindings = std::array<VkDescriptorSetLayoutBinding, 3>();
+    bindings[0]   = {.binding = 0, .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, .descriptorCount = 1'000'000, .stageFlags = VK_SHADER_STAGE_ALL};
+    bindings[1]   = {.binding = 1, .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, .descriptorCount = 1'000'000, .stageFlags = VK_SHADER_STAGE_ALL};
+    bindings[2]   = {.binding = 2, .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER, .descriptorCount = 1000, .stageFlags = VK_SHADER_STAGE_ALL};
 
-    auto bindingsFlags = std::array<VkDescriptorBindingFlags, 2>({
+    auto bindingsFlags = std::array<VkDescriptorBindingFlags, 3>({
+      VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
       VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
       VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
     });
 
     CheckVkResult(vkCreateDescriptorSetLayout(ctx.device,
       ToPtr(VkDescriptorSetLayoutCreateInfo{
-        .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-        .pNext        = ToPtr(VkDescriptorSetLayoutBindingFlagsCreateInfo{
-                 .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
-                 .bindingCount  = static_cast<uint32_t>(bindingsFlags.size()),
-                 .pBindingFlags = bindingsFlags.data(),
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .pNext = ToPtr(VkDescriptorSetLayoutBindingFlagsCreateInfo{
+          .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
+          .bindingCount  = static_cast<uint32_t>(bindingsFlags.size()),
+          .pBindingFlags = bindingsFlags.data(),
         }),
+
         .flags        = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT,
         .bindingCount = static_cast<uint32_t>(bindings.size()),
         .pBindings    = bindings.data(),

@@ -8,7 +8,6 @@
 
 struct gfx_compute_pipeline_t
 {
-  VkShaderModule shaderModule;
   VkPipeline pipeline;
 };
 

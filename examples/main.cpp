@@ -145,11 +145,13 @@ int main()
   const auto pipeline = gfx_create_compute_pipeline({.ptr = result.binarySpv.data(), .size = result.binarySpv.size() * sizeof(uint32_t)});
   
   {
-    auto cmd       = gfx_create_command_buffer(GFX_QUEUE_COMPUTE);
-    auto* memory   = (int*)gfx_malloc(sizeof(int));
-    *memory        = 124;
+    auto cmd     = gfx_create_command_buffer(GFX_QUEUE_COMPUTE);
+    auto* memory = (int*)gfx_malloc(sizeof(int));
+    *memory      = 1;
 
     std::println("*memory was: {}", *memory);
+    gfx_cmd_dispatch(cmd, pipeline, 1, 1, 1, gfx_host_to_device_ptr(memory));
+    gfx_cmd_barrier(cmd, GFX_STAGE_COMPUTE, GFX_ACCESS_ALL, GFX_STAGE_COMPUTE, GFX_ACCESS_ALL);
     gfx_cmd_dispatch(cmd, pipeline, 1, 1, 1, gfx_host_to_device_ptr(memory));
 
     auto token = gfx_submit(cmd, nullptr, 0);

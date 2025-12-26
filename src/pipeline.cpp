@@ -7,6 +7,7 @@ gfx_compute_pipeline gfx_create_compute_pipeline(gfx_byte_span code)
   auto& ctx = gfx2::internal::GetContextInstance();
 
   auto* pipeline = new gfx_compute_pipeline_t{};
+  auto shaderModule = VkShaderModule{};
   vkCreateShaderModule(ctx.device,
     ToPtr(VkShaderModuleCreateInfo{
       .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -14,7 +15,7 @@ gfx_compute_pipeline gfx_create_compute_pipeline(gfx_byte_span code)
       .pCode    = static_cast<const uint32_t*>(code.ptr),
     }),
     nullptr,
-    &pipeline->shaderModule);
+    &shaderModule);
 
   CheckVkResult(vkCreateComputePipelines(ctx.device,
     VK_NULL_HANDLE,
@@ -25,7 +26,7 @@ gfx_compute_pipeline gfx_create_compute_pipeline(gfx_byte_span code)
         VkPipelineShaderStageCreateInfo{
           .sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
           .stage               = VK_SHADER_STAGE_COMPUTE_BIT,
-          .module              = pipeline->shaderModule,
+          .module              = shaderModule,
           .pName               = "main",
           .pSpecializationInfo = nullptr,
         },
@@ -33,6 +34,8 @@ gfx_compute_pipeline gfx_create_compute_pipeline(gfx_byte_span code)
     }),
     nullptr,
     &pipeline->pipeline));
+
+  vkDestroyShaderModule(ctx.device, shaderModule, nullptr);
 
   return pipeline;
 }
@@ -42,7 +45,6 @@ void gfx_destroy_compute_pipeline(gfx_compute_pipeline pipeline)
   assert(pipeline);
   auto& ctx = gfx2::internal::GetContextInstance();
 
-  vkDestroyShaderModule(ctx.device, pipeline->shaderModule, nullptr);
   vkDestroyPipeline(ctx.device, pipeline->pipeline, nullptr);
   delete pipeline;
 }
