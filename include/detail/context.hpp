@@ -4,6 +4,7 @@
 #include "vulkan/vulkan_core.h"
 
 #include <cassert>
+#include <stack>
 #include <vector>
 
 struct gfx_compute_pipeline_t
@@ -37,7 +38,7 @@ namespace gfx2::internal
   {
     std::vector<MemoryMapping> mappings;
 
-    VkDeviceAddress HostToDeviceAddress(void* ptr) const
+    VkDeviceAddress HostToDeviceAddress(const void* ptr) const
     {
       const auto uPtr = reinterpret_cast<uintptr_t>(ptr);
       for (const auto& mapping : mappings)
@@ -51,6 +52,34 @@ namespace gfx2::internal
       assert(false);
       return 0;
     }
+
+    MemoryMapping DeviceAddressToMapping(const void* ptr) const
+    {
+      const auto uPtr = reinterpret_cast<uintptr_t>(ptr);
+      for (const auto& mapping : mappings)
+      {
+        if (uPtr >= mapping.deviceAddress && uPtr < mapping.deviceAddress + (mapping.end - mapping.begin))
+        {
+          return mapping;
+        }
+      }
+
+      assert(false);
+      return {};
+    }
+  };
+
+  class IndexAllocator
+  {
+  public:
+    IndexAllocator() = default;
+    IndexAllocator(uint32_t numIndices);
+
+    [[nodiscard]] uint32_t Allocate();
+    void Free(uint32_t index);
+
+  private:
+    std::stack<uint32_t> freeSlots_;
   };
 
   struct Context
@@ -64,6 +93,9 @@ namespace gfx2::internal
     uint32_t transferQueueFamilyIndex;
 
     MemoryMappings memoryMappings;
+    IndexAllocator sampledImageDescriptorAllocator;
+    IndexAllocator storageImageDescriptorAllocator;
+    IndexAllocator samplerDescriptorAllocator;
 
     gfx_semaphore_t semaphores[GFX_NUM_QUEUES];
     uint64_t semaphoreValues[GFX_NUM_QUEUES];
@@ -71,7 +103,12 @@ namespace gfx2::internal
     VkCommandPool commandPools[GFX_NUM_QUEUES];
     VkDescriptorPool descriptorPool;
     VkDescriptorSetLayout commonDescriptorSetLayout;
+    VkDescriptorSet descriptorSet;
     VkPipelineLayout commonPipelineLayout;
+
+    static constexpr uint32_t STORAGE_IMAGE_BINDING = 0;
+    static constexpr uint32_t SAMPLED_IMAGE_BINDING = 1;
+    static constexpr uint32_t SAMPLER = 2;
   };
 
   void CreateContextInstance(const gfx_vulkan_init_info& info);

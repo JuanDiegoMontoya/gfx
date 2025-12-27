@@ -4,6 +4,7 @@
 #include "gfx2.h"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 
 void* gfx_malloc(size_t bytes)
@@ -16,12 +17,7 @@ void* gfx_malloc(size_t bytes)
                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                              VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
-  auto queueFamilyIndices = std::vector<uint32_t>();
-  queueFamilyIndices.push_back(ctx.graphicsQueueFamilyIndex);
-  if (ctx.computeQueueFamilyIndex != -1)
-    queueFamilyIndices.push_back(ctx.computeQueueFamilyIndex);
-  if (ctx.transferQueueFamilyIndex != -1)
-    queueFamilyIndices.push_back(ctx.transferQueueFamilyIndex);
+  const auto queueFamilyIndices = std::array{ctx.graphicsQueueFamilyIndex, ctx.computeQueueFamilyIndex, ctx.transferQueueFamilyIndex};
 
   auto mapping = gfx2::internal::MemoryMapping{};
   auto allocationInfo = VmaAllocationInfo{};

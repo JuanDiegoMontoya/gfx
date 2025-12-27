@@ -14,26 +14,38 @@
 
 namespace
 {
-  constexpr char sShader[] =
+  constexpr char sShader[] = // compute shader.
     R"(
-      #version 460 core
-      #extension GL_EXT_buffer_reference : require
+#version 460 core
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_buffer_reference2 : require
+#extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_samplerless_texture_functions : require
 
-      layout(buffer_reference) buffer Pointer
-      {
-        int value;
-      };
+layout(binding = 1) uniform texture2D textures[];
 
-      layout(push_constant) uniform PC
-      {
-        Pointer pointer;
-      };
+layout(buffer_reference, buffer_reference_align = 4) buffer Data
+{
+  float value;
+};
 
-      layout(local_size_x = 1) in;
-      void main()
-      {
-        pointer.value *= 2;
-      }
+layout(buffer_reference) buffer Pointer
+{
+  Data data;
+  uint descriptor;
+};
+
+layout(push_constant) uniform PC
+{
+  Pointer pointer;
+};
+
+layout(local_size_x = 2, local_size_y = 2) in;
+void main()
+{
+  uvec2 gid = gl_GlobalInvocationID.xy;
+  pointer.data[gid.x + gid.y * gl_WorkGroupSize.x].value = texelFetch(textures[pointer.descriptor], ivec2(gid), 0).r;
+}
     )";
 
   struct ShaderCompileInfo
@@ -144,21 +156,59 @@ int main()
   const auto result = CompileShaderToSpirv(shaderc_compute_shader, sShader);
   const auto pipeline = gfx_create_compute_pipeline({.ptr = result.binarySpv.data(), .size = result.binarySpv.size() * sizeof(uint32_t)});
   
+  const auto ToColor = [](uint8_t r, uint8_t g, uint8_t b, uint8_t a) -> uint32_t { return r | (g << 8) | (b << 16) | (a << 24); };
+
   {
     auto cmd     = gfx_create_command_buffer(GFX_QUEUE_COMPUTE);
-    auto* memory = (int*)gfx_malloc(sizeof(int));
-    *memory      = 1;
+    auto* memory = static_cast<uint32_t*>(gfx_malloc(sizeof(uint32_t) * 4));
+    const auto gray  = ToColor(127, 127, 127, 255);
+    const auto dark = ToColor(68, 68, 68, 255);
+    memory[0]         = gray;
+    memory[1]         = dark;
+    memory[2]         = dark;
+    memory[3]         = gray;
 
-    std::println("*memory was: {}", *memory);
-    gfx_cmd_dispatch(cmd, pipeline, 1, 1, 1, gfx_host_to_device_ptr(memory));
-    gfx_cmd_barrier(cmd, GFX_STAGE_COMPUTE, GFX_ACCESS_ALL, GFX_STAGE_COMPUTE, GFX_ACCESS_ALL);
-    gfx_cmd_dispatch(cmd, pipeline, 1, 1, 1, gfx_host_to_device_ptr(memory));
+    auto image = gfx_create_image(ToPtr(gfx_image_create_info{
+      .type         = GFX_IMAGE_TYPE_2D,
+      .format       = GFX_FORMAT_R8G8B8A8_UNORM,
+      .extent       = {2, 2, 1},
+      .mip_levels   = 1,
+      .array_layers = 1,
+    }));
+
+    gfx_cmd_init_discard_image(cmd, image);
+    gfx_cmd_barrier(cmd, GFX_STAGE_TRANSFER, GFX_ACCESS_ALL, GFX_STAGE_TRANSFER, GFX_ACCESS_ALL);
+    auto copy = gfx_copy_buffer_image_info{
+      .buffer           = gfx_host_to_device_ptr(memory),
+      .image            = image,
+      .layer_count      = 1,
+      .extent           = {2, 2, 1},
+    };
+    gfx_cmd_copy_buffer_to_image(cmd, &copy);
+    gfx_cmd_barrier(cmd, GFX_STAGE_TRANSFER, GFX_ACCESS_ALL, GFX_STAGE_COMPUTE, GFX_ACCESS_ALL);
+
+    struct PC
+    {
+      const void* data;
+      uint32_t descriptor;
+    };
+    auto* pc = static_cast<PC*>(gfx_malloc(sizeof(PC)));
+    auto* output = static_cast<float*>(gfx_malloc(sizeof(float) * 4));
+
+    pc->data   = gfx_host_to_device_ptr(output);
+    pc->descriptor = gfx_get_sampled_image_descriptor(image).index;
+    gfx_cmd_dispatch(cmd, pipeline, 1, 1, 1, gfx_host_to_device_ptr(pc));
 
     auto token = gfx_submit(cmd, nullptr, 0);
-    gfx_wait_token(token);
+    gfx_wait_submit(token);
     gfx_destroy_command_buffer(cmd);
 
-    std::println("*memory is: {}", *memory);
+    std::println("output:\n{}, {}\n{}, {}", output[0], output[1], output[2], output[3]);
+
+    gfx_destroy_image(image);
+
+    gfx_free(output);
+    gfx_free(pc);
     gfx_free(memory);
   }
 

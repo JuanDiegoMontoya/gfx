@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cassert>
+#include <ranges>
 
 namespace
 {
@@ -59,6 +60,10 @@ namespace
     poolSizes[1]   = {.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, .descriptorCount = 1'000'000};
     poolSizes[2]   = {.type = VK_DESCRIPTOR_TYPE_SAMPLER, .descriptorCount = 1000};
 
+    ctx.storageImageDescriptorAllocator = {1'000'000};
+    ctx.sampledImageDescriptorAllocator = {1'000'000};
+    ctx.samplerDescriptorAllocator      = {1000};
+
     CheckVkResult(vkCreateDescriptorPool(ctx.device,
       ToPtr(VkDescriptorPoolCreateInfo{
         .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
@@ -69,11 +74,12 @@ namespace
       }),
       nullptr,
       &ctx.descriptorPool));
-
+    
+    using namespace gfx2::internal;
     auto bindings = std::array<VkDescriptorSetLayoutBinding, 3>();
-    bindings[0]   = {.binding = 0, .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, .descriptorCount = 1'000'000, .stageFlags = VK_SHADER_STAGE_ALL};
-    bindings[1]   = {.binding = 1, .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, .descriptorCount = 1'000'000, .stageFlags = VK_SHADER_STAGE_ALL};
-    bindings[2]   = {.binding = 2, .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER, .descriptorCount = 1000, .stageFlags = VK_SHADER_STAGE_ALL};
+    bindings[0]   = {.binding = Context::STORAGE_IMAGE_BINDING, .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, .descriptorCount = 1'000'000, .stageFlags = VK_SHADER_STAGE_ALL};
+    bindings[1]   = {.binding = Context::SAMPLED_IMAGE_BINDING, .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, .descriptorCount = 1'000'000, .stageFlags = VK_SHADER_STAGE_ALL};
+    bindings[2]   = {.binding = Context::SAMPLER, .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER, .descriptorCount = 1000, .stageFlags = VK_SHADER_STAGE_ALL};
 
     auto bindingsFlags = std::array<VkDescriptorBindingFlags, 3>({
       VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
@@ -96,6 +102,15 @@ namespace
       }),
       nullptr,
       &ctx.commonDescriptorSetLayout));
+
+    CheckVkResult(vkAllocateDescriptorSets(ctx.device,
+      ToPtr(VkDescriptorSetAllocateInfo{
+        .sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool     = ctx.descriptorPool,
+        .descriptorSetCount = 1,
+        .pSetLayouts        = &ctx.commonDescriptorSetLayout,
+      }),
+      &ctx.descriptorSet));
 
     CheckVkResult(vkCreatePipelineLayout(ctx.device,
       ToPtr(VkPipelineLayoutCreateInfo{
@@ -142,6 +157,26 @@ namespace
       nullptr,
       &ctx.commandPools[GFX_QUEUE_TRANSFER]));
   }
+}
+
+gfx2::internal::IndexAllocator::IndexAllocator(uint32_t numIndices)
+{
+  for (auto i : std::ranges::reverse_view(std::views::iota(uint32_t(0), numIndices)))
+  {
+    freeSlots_.push(i);
+  }
+}
+
+uint32_t gfx2::internal::IndexAllocator::Allocate()
+{
+  const auto index = freeSlots_.top();
+  freeSlots_.pop();
+  return index;
+}
+
+void gfx2::internal::IndexAllocator::Free(uint32_t index)
+{
+  freeSlots_.push(index);
 }
 
 void gfx2::internal::CreateContextInstance(const gfx_vulkan_init_info& info)
