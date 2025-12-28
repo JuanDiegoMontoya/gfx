@@ -6,6 +6,8 @@
 #include "vulkan/vulkan_core.h"
 
 #include <cassert>
+#include <filesystem>
+#include <fstream>
 #include <memory>
 #include <print>
 #include <string_view>
@@ -17,12 +19,7 @@ namespace
   constexpr char sShader[] = // compute shader.
     R"(
 #version 460 core
-#extension GL_EXT_buffer_reference : require
-#extension GL_EXT_buffer_reference2 : require
-#extension GL_EXT_nonuniform_qualifier : require
-#extension GL_EXT_samplerless_texture_functions : require
-
-layout(binding = 1) uniform texture2D textures[];
+#include <gfx2_glsl.h>
 
 layout(buffer_reference, buffer_reference_align = 4) buffer Data
 {
@@ -32,7 +29,7 @@ layout(buffer_reference, buffer_reference_align = 4) buffer Data
 layout(buffer_reference) buffer Pointer
 {
   Data data;
-  uint descriptor;
+  gfx_glsl_texture2D tex;
 };
 
 layout(push_constant) uniform PC
@@ -44,14 +41,97 @@ layout(local_size_x = 2, local_size_y = 2) in;
 void main()
 {
   uvec2 gid = gl_GlobalInvocationID.xy;
-  pointer.data[gid.x + gid.y * gl_WorkGroupSize.x].value = texelFetch(textures[pointer.descriptor], ivec2(gid), 0).r;
+  pointer.data[gid.x + gid.y * gl_WorkGroupSize.x].value = texelFetch(pointer.tex, ivec2(gid), 0).r;
 }
     )";
+
+  std::string LoadFile(const std::filesystem::path& path)
+  {
+    std::ifstream file{path};
+    if (!file)
+    {
+      throw std::runtime_error("File not found");
+    }
+    return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+  }
+
+  size_t NumberOfPathComponents(std::filesystem::path path)
+  {
+    size_t parents = 0;
+    while (!path.empty())
+    {
+      parents++;
+      path = path.parent_path();
+    }
+    return parents > 0 ? parents - 1 : 0; // The path will contain a filename, which we will ignore.
+  }
+
+  class IncludeHandler final : public shaderc::CompileOptions::IncluderInterface
+  {
+  public:
+    IncludeHandler(const std::filesystem::path& sourcePath)
+    {
+      // Seed the "stack" with just the parent directory of the top-level source.
+      currentIncluderDir_ /= sourcePath.parent_path();
+    }
+
+    shaderc_include_result* GetInclude(const char* requested_source,
+      [[maybe_unused]] shaderc_include_type type,
+      [[maybe_unused]] const char* requesting_source,
+      [[maybe_unused]] size_t include_depth) override
+    {
+      // Everything will explode if this is not relative
+      assert(std::filesystem::path(requested_source).is_relative());
+      
+      auto fullRequestedSource = std::filesystem::path();
+      
+      if (type == shaderc_include_type_relative) // "include.h"
+      {
+        fullRequestedSource = currentIncluderDir_ / requested_source;
+      }
+      else // <include.h>
+      {
+        fullRequestedSource = std::filesystem::path(__FILE__).parent_path().parent_path() / "include" / requested_source;
+      }
+
+      currentIncluderDir_ = fullRequestedSource.parent_path();
+
+      auto contentPtr    = std::make_unique<std::string>(LoadFile(fullRequestedSource));
+      auto content       = contentPtr.get();
+      auto sourcePathPtr = std::make_unique<std::string>(requested_source);
+
+      contentStrings_.emplace_back(std::move(contentPtr));
+      sourcePathStrings_.emplace_back(std::move(sourcePathPtr));
+
+      return new shaderc_include_result{
+        .source_name        = requested_source,
+        .source_name_length = std::strlen(requested_source),
+        .content            = content->c_str(),
+        .content_length     = content->size(),
+        .user_data          = nullptr,
+      };
+    }
+
+    void ReleaseInclude(shaderc_include_result* data) override
+    {
+      for (size_t i = 0; i < NumberOfPathComponents(data->source_name); i++)
+      {
+        currentIncluderDir_ = currentIncluderDir_.parent_path();
+      }
+
+      delete data;
+    }
+
+  private:
+    // Acts like a stack that we "push" path components to when include{Local, System} are invoked, and "pop" when releaseInclude is invoked
+    std::filesystem::path currentIncluderDir_;
+    std::vector<std::unique_ptr<std::string>> contentStrings_;
+    std::vector<std::unique_ptr<std::string>> sourcePathStrings_;
+  };
 
   struct ShaderCompileInfo
   {
     std::vector<uint32_t> binarySpv;
-    uint32_t workgroupSize_[3];
   };
 
   ShaderCompileInfo CompileShaderToSpirv(shaderc_shader_kind glslangStage, std::string_view source)
@@ -62,6 +142,7 @@ void main()
     options.SetTargetEnvironment(shaderc_target_env_vulkan, 0);
     options.SetTargetSpirv(shaderc_spirv_version_1_6);
     options.SetGenerateDebugInfo();
+    options.SetIncluder(std::make_unique<IncludeHandler>(""));
 
     auto result = compiler.CompileGlslToSpv(source.data(), source.size(), glslangStage, "shader.glsl", options);
     assert(result.GetNumErrors() == 0);
